@@ -72,7 +72,7 @@ const SavedJobsScreen = () => {
         navigation.setOptions({
             title: `Saved Jobs`,
         });
-    }, [savedJobs.length]);
+    }, [savedJobs.length, navigation]);
 
     const handleBrowseJobs = () => {
         (navigation as any).navigate("JobStack", { screen: "Jobs" });
