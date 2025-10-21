@@ -56,7 +56,7 @@ const AppNavigator = () => {
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="bookmark-outline" size={size} color={color} />
             ),
-            tabBarBadge: savedJobs.length > 0 ? savedJobs.length : undefined, // ✅ FIXED!
+            tabBarBadge: savedJobs.length > 0 ? savedJobs.length : undefined,
           }}
         />
         <Tab.Screen 

@@ -3,6 +3,8 @@ import { Job } from "../types/Job";
 import { v4 as uuidv4 } from 'uuid';
 import { Alert } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STORAGE_KEYS, APP_CONFIG, ERROR_MESSAGES } from '../constants';
+import { fetchJobsFromAPI } from '../utils/api';
 
 interface ApplicationData {
   name: string;
@@ -14,17 +16,22 @@ interface ApplicationData {
 interface Filters {
   minSalary?: number;
   location?: string;
-  jobType?: string[];
+  jobType?: string;
+  workModel?: string;
+  seniorityLevel?: string;
+  category?: string;
 }
 
 interface JobContextType {
   jobs: Job[];
+  allJobs: Job[];
   savedJobs: Job[];
-  appliedJobs: string[];
+  appliedJobs: Job[]; // Changed from string[] to Job[]
   fetchJobs: () => Promise<void>;
   searchJobs: (term: string) => void;
   saveJob: (job: Job) => void;
-  removeSavedJob: (id: string) => void;
+  removeSavedJob: (job: Job) => void;
+  unsaveJob: (job: Job) => void;
   isLoading: boolean;
   error: string | null;
   applyForJob: (jobId: string, applicationData: ApplicationData) => Promise<void>;
@@ -59,36 +66,84 @@ export const JobProvider = ({ children }: { children: ReactNode }) => {
   const [allJobs, setAllJobs] = useState<Job[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [savedJobs, setSavedJobs] = useState<Job[]>([]);
-  const [appliedJobs, setAppliedJobs] = useState<string[]>([]);
+  const [appliedJobs, setAppliedJobs] = useState<Job[]>([]); // Changed from string[] to Job[]
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [filters, setFilters] = useState<Filters>({});
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Load applied jobs from storage on initial render
+  // Load persisted data from storage on initial render
   useEffect(() => {
-    const loadAppliedJobs = async () => {
+    const loadPersistedData = async () => {
       try {
-        const saved = await AsyncStorage.getItem('appliedJobs');
-        if (saved) setAppliedJobs(JSON.parse(saved));
+        const [appliedJobsData, savedJobsData, searchHistoryData, cachedJobsData] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEYS.APPLIED_JOBS),
+          AsyncStorage.getItem(STORAGE_KEYS.SAVED_JOBS),
+          AsyncStorage.getItem(STORAGE_KEYS.SEARCH_HISTORY),
+          AsyncStorage.getItem(STORAGE_KEYS.CACHED_JOBS)
+        ]);
+        
+        if (appliedJobsData) {
+          const parsed = JSON.parse(appliedJobsData);
+          setAppliedJobs(parsed);
+        }
+        if (savedJobsData) setSavedJobs(JSON.parse(savedJobsData));
+        if (searchHistoryData) setSearchHistory(JSON.parse(searchHistoryData));
+        
+        // Load cached jobs if available
+        if (cachedJobsData) {
+          const cachedJobs = JSON.parse(cachedJobsData);
+          setAllJobs(cachedJobs);
+          setJobs(cachedJobs);
+        }
       } catch (error) {
-        console.error('Failed to load applied jobs', error);
+        console.error('Failed to load persisted data', error);
+      } finally {
+        setIsInitialized(true);
       }
     };
-    loadAppliedJobs();
+    loadPersistedData();
   }, []);
 
-  // Save applied jobs to storage when they change
+  // Save applied jobs to storage when they change (only after initialization)
   useEffect(() => {
+    if (!isInitialized) return;
     const saveAppliedJobs = async () => {
       try {
-        await AsyncStorage.setItem('appliedJobs', JSON.stringify(appliedJobs));
+        await AsyncStorage.setItem(STORAGE_KEYS.APPLIED_JOBS, JSON.stringify(appliedJobs));
       } catch (error) {
         console.error('Failed to save applied jobs', error);
       }
     };
     saveAppliedJobs();
-  }, [appliedJobs]);
+  }, [appliedJobs, isInitialized]);
+
+  // Save saved jobs to storage when they change (only after initialization)
+  useEffect(() => {
+    if (!isInitialized) return;
+    const saveSavedJobs = async () => {
+      try {
+        await AsyncStorage.setItem(STORAGE_KEYS.SAVED_JOBS, JSON.stringify(savedJobs));
+      } catch (error) {
+        console.error('Failed to save saved jobs', error);
+      }
+    };
+    saveSavedJobs();
+  }, [savedJobs, isInitialized]);
+
+  // Save search history to storage when it changes (only after initialization)
+  useEffect(() => {
+    if (!isInitialized) return;
+    const saveSearchHistory = async () => {
+      try {
+        await AsyncStorage.setItem(STORAGE_KEYS.SEARCH_HISTORY, JSON.stringify(searchHistory));
+      } catch (error) {
+        console.error('Failed to save search history', error);
+      }
+    };
+    saveSearchHistory();
+  }, [searchHistory, isInitialized]);
 
   const normalizeString = (str: string) => {
     return str.toLowerCase().trim().replace(/\s+/g, ' ');
@@ -129,6 +184,30 @@ export const JobProvider = ({ children }: { children: ReactNode }) => {
       });
     }
 
+    if (filters.jobType) {
+      filtered = filtered.filter(job => 
+        job.jobType && normalizeString(job.jobType) === normalizeString(filters.jobType!)
+      );
+    }
+
+    if (filters.workModel) {
+      filtered = filtered.filter(job => 
+        job.workModel && normalizeString(job.workModel) === normalizeString(filters.workModel!)
+      );
+    }
+
+    if (filters.seniorityLevel) {
+      filtered = filtered.filter(job => 
+        job.seniorityLevel && normalizeString(job.seniorityLevel) === normalizeString(filters.seniorityLevel!)
+      );
+    }
+
+    if (filters.category) {
+      filtered = filtered.filter(job => 
+        job.mainCategory && normalizeString(job.mainCategory) === normalizeString(filters.category!)
+      );
+    }
+
     return filtered;
   }, [filters]);
 
@@ -137,29 +216,8 @@ export const JobProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     
     try {
-      const response = await fetch('https://empllo.com/api/v1', {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const jobsArray = await fetchJobsFromAPI();
       
-      const data = await response.json();
-      console.log('API Response:', data);
-
-      let jobsArray = [];
-      if (Array.isArray(data)) {
-        jobsArray = data;
-      } else if (data?.data) {
-        jobsArray = data.data;
-      } else if (data?.jobs) {
-        jobsArray = data.jobs;
-      } else {
-        throw new Error('Invalid API response format');
-      }
-
       const transformedJobs = jobsArray.map((job: any) => {
         const minSalary = job.minSalary ?? job.midslary ?? null;
         const maxSalary = job.maxSalary ?? null;
@@ -174,17 +232,51 @@ export const JobProvider = ({ children }: { children: ReactNode }) => {
           maxSalary: maxSalary !== null ? Number(maxSalary) : null,
           salaryText: formatSalaryText(minSalary, maxSalary),
           description: job.description || '',
-          location: job.locations?.[0] || ''
+          location: job.locations?.[0] || '',
+          
+          // Additional API fields
+          mainCategory: job.mainCategory,
+          applicationLink: job.applicationLink,
+          pubDate: job.pubDate,
+          expiryDate: job.expiryDate,
+          companyName: job.companyName,
+          companyLogo: job.companyLogo,
+          jobType: job.jobType,
+          workModel: job.workModel,
+          seniorityLevel: job.seniorityLevel,
+          locations: job.locations,
+          tags: job.tags,
         };
       });
 
       setAllJobs(transformedJobs);
       setJobs(filterJobs(transformedJobs, ''));
       
+      // Cache jobs for offline access
+      try {
+        await AsyncStorage.setItem(STORAGE_KEYS.CACHED_JOBS, JSON.stringify(transformedJobs));
+        await AsyncStorage.setItem(STORAGE_KEYS.LAST_FETCH_TIME, Date.now().toString());
+      } catch (cacheError) {
+        console.error('Failed to cache jobs', cacheError);
+      }
+      
     } catch (error) {
       console.error('API Error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to fetch jobs');
-      setJobs([]);
+      const errorMessage = error instanceof Error ? error.message : ERROR_MESSAGES.API_ERROR;
+      setError(errorMessage);
+      
+      // Try to load cached jobs on error
+      try {
+        const cachedJobsData = await AsyncStorage.getItem(STORAGE_KEYS.CACHED_JOBS);
+        if (cachedJobsData) {
+          const cachedJobs = JSON.parse(cachedJobsData);
+          setAllJobs(cachedJobs);
+          setJobs(filterJobs(cachedJobs, ''));
+          setError(`${errorMessage} Showing cached data.`);
+        }
+      } catch (cacheError) {
+        console.error('Failed to load cached jobs', cacheError);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -193,7 +285,7 @@ export const JobProvider = ({ children }: { children: ReactNode }) => {
   const addToSearchHistory = useCallback((term: string) => {
     if (term.trim()) {
       setSearchHistory(prev => 
-        [term, ...prev.filter(t => t !== term)].slice(0, 5)
+        [term, ...prev.filter(t => t !== term)].slice(0, APP_CONFIG.MAX_SEARCH_HISTORY)
       );
     }
   }, []);
@@ -216,19 +308,28 @@ export const JobProvider = ({ children }: { children: ReactNode }) => {
     );
   }, []);
 
-  const removeSavedJob = useCallback((id: string) => {
-    setSavedJobs(prev => prev.filter(job => job.id !== id));
+  const removeSavedJob = useCallback((jobToRemove: Job) => {
+    setSavedJobs(prev => prev.filter(savedJob => {
+      // Match by applicationLink (most stable)
+      if (jobToRemove.applicationLink && savedJob.applicationLink) {
+        return savedJob.applicationLink !== jobToRemove.applicationLink;
+      }
+      // Fallback to title + company
+      return !(savedJob.title === jobToRemove.title && savedJob.company === jobToRemove.company);
+    }));
   }, []);
 
   const markJobAsApplied = useCallback((jobId: string) => {
-    setAppliedJobs(prev => 
-      prev.includes(jobId) ? prev : [...prev, jobId]
-    );
-  }, []);
+    const jobToApply = allJobs.find(job => job.id === jobId);
+    if (jobToApply) {
+      setAppliedJobs(prev => 
+        prev.some(job => job.id === jobId) ? prev : [...prev, jobToApply]
+      );
+    }
+  }, [allJobs]);
 
   const applyForJob = useCallback(async (jobId: string, applicationData: ApplicationData) => {
     try {
-      console.log('Applying for job:', jobId, applicationData);
       await new Promise(resolve => setTimeout(resolve, 1000));
   
       // Find the job by ID
@@ -255,13 +356,15 @@ export const JobProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <JobContext.Provider value={{ 
-      jobs, 
+      jobs,
+      allJobs,
       savedJobs,
       appliedJobs,
       fetchJobs,
       searchJobs,
       saveJob, 
       removeSavedJob,
+      unsaveJob: removeSavedJob,
       isLoading,
       error,
       applyForJob,

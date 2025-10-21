@@ -7,7 +7,7 @@ export const createJobFinderScreenStyles = (isDark: boolean) => {
 
   return StyleSheet.create({
     container: {
-      ...globalStyles.container,
+      flex: 1,
       backgroundColor: themeColors.background
     },
     filterButtonText: {
@@ -82,24 +82,6 @@ export const createJobFinderScreenStyles = (isDark: boolean) => {
     retryButtonText: {
       ...globalStyles.buttonText,
       color: colors.light.text
-    },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: spacing.medium,
-      borderBottomWidth: 1,
-      borderBottomColor: colors[isDark ? 'dark' : 'light'].border,
-    },
-    headerTitle: {
-      fontSize: fontSizes.xlarge,
-      fontWeight: 'bold',
-      color: colors[isDark ? 'dark' : 'light'].text,
-    },
-    headerActions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.medium,
     },
     filterButton: {
       padding: spacing.small,

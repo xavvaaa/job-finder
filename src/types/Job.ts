@@ -9,4 +9,17 @@ export interface Job {
   salaryText: string; // Formatted display text
   description: string;
   location: string;
+  
+  // Additional API fields
+  mainCategory?: string;
+  applicationLink?: string;
+  pubDate?: number;
+  expiryDate?: number;
+  companyName?: string;
+  companyLogo?: string;
+  jobType?: string;
+  workModel?: string;
+  seniorityLevel?: string;
+  locations?: string[];
+  tags?: string[];
 }

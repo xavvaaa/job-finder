@@ -1,13 +1,15 @@
 // components/JobItem.tsx
-import React, { useState } from "react";
+import React, { useState, memo, useMemo } from "react";
 import { View, Text, TouchableOpacity, Image, Modal, Alert, StyleSheet } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from "../contexts/ThemeContext";
 import { Job } from "../types/Job";
 import ApplicationForm, { ApplicationFormProps } from "./ApplicationForm";
 import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useJobContext } from "../contexts/JobContext";
 import { colors, spacing, fontSizes, borderRadius } from "../styles/theme";
+import { JobStackParamList } from "../navigation/JobStackNavigator";
 
 interface JobItemProps {
   job: Job;
@@ -17,7 +19,7 @@ interface JobItemProps {
   hideButtons?: boolean;
 }
 
-const JobItem: React.FC<JobItemProps> = ({ 
+const JobItem: React.FC<JobItemProps> = memo(({ 
   job, 
   onSave, 
   isSaved,
@@ -29,10 +31,23 @@ const JobItem: React.FC<JobItemProps> = ({
   const styles = createStyles(theme === 'dark');
   const [logoError, setLogoError] = useState(false);
   const [showApplicationForm, setShowApplicationForm] = useState(false);
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<JobStackParamList>>();
 
-  const isApplied = appliedJobs.includes(job.id);
+  // Check if applied using stable identifiers (applicationLink or title+company)
+  const isApplied = appliedJobs.some(appliedJob => {
+    // First try applicationLink (most stable)
+    if (job.applicationLink && appliedJob.applicationLink) {
+      return appliedJob.applicationLink === job.applicationLink;
+    }
+    // Fallback to title + company
+    return appliedJob.title === job.title && appliedJob.company === job.company;
+  });
+  
   const formattedSalary = job.salaryText || 'Salary not specified';
+
+  const handleCardPress = () => {
+    navigation.navigate('JobDetails', { jobId: job.id });
+  };
 
   const handleApplySubmit: ApplicationFormProps['onApply'] = async (applicationData) => {
     try {
@@ -63,8 +78,9 @@ const JobItem: React.FC<JobItemProps> = ({
 
   return (
     <View style={styles.card}>
-      {/* Header Section */}
-      <View style={styles.header}>
+      <TouchableOpacity onPress={handleCardPress} activeOpacity={0.7}>
+        {/* Header Section */}
+        <View style={styles.header}>
         {/* Logo */}
         <View style={styles.logoContainer}>
           {job.logo && !logoError ? (
@@ -116,6 +132,7 @@ const JobItem: React.FC<JobItemProps> = ({
           </View>
         )}
       </View>
+      </TouchableOpacity>
 
       {/* Action Buttons */}
       {!hideButtons && (
@@ -172,7 +189,14 @@ const JobItem: React.FC<JobItemProps> = ({
       </Modal>
     </View>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison function for memo
+  return (
+    prevProps.job.id === nextProps.job.id &&
+    prevProps.isSaved === nextProps.isSaved &&
+    prevProps.hideButtons === nextProps.hideButtons
+  );
+});
 
 const createStyles = (isDark: boolean) => StyleSheet.create({
   card: {

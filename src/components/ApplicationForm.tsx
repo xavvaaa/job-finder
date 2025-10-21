@@ -10,6 +10,8 @@ import {
   Alert,
   Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 
 export interface ApplicationFormProps {
@@ -111,16 +113,21 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.keyboardAvoidingContainer}
-    >
-      <ScrollView
-        contentContainerStyle={[styles.scrollContainer, { backgroundColor: colors.background }]}
-        keyboardShouldPersistTaps="handled"
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboardAvoidingContainer}
       >
-        <View style={[styles.container, { backgroundColor: colors.cardBackground }]}>
-          <Text style={[styles.title, { color: colors.text }]}>Job Application</Text>
+        <ScrollView
+          contentContainerStyle={[styles.scrollContainer, { backgroundColor: colors.cardBackground }]}
+          keyboardShouldPersistTaps="handled"
+        >
+            <View style={styles.headerContainer}>
+              <Text style={[styles.title, { color: colors.text }]}>Job Application</Text>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Ionicons name="close" size={28} color={colors.text} />
+              </TouchableOpacity>
+            </View>
 
           {/* Name Field */}
           <View style={styles.fieldContainer}>
@@ -248,37 +255,48 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({
               <Text style={[styles.cancelButtonText, { color: colors.text }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
-        </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    marginVertical: 40,
+  },
   keyboardAvoidingContainer: {
     flex: 1,
   },
   scrollContainer: {
     flexGrow: 1,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-  },
-  container: {
-    padding: 24,
+    padding: 20,
+    marginHorizontal: 16,
     borderRadius: 12,
-    width: '100%',
-    alignSelf: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 3,
   },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
   title: {
     fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 24,
+    flex: 1,
     textAlign: 'center',
+  },
+  closeButton: {
+    padding: 4,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   fieldContainer: {
     marginBottom: 20,

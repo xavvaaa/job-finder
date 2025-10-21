@@ -1,18 +1,21 @@
 import 'react-native-get-random-values';
 import React from 'react';
-import { SafeAreaView, Platform, StatusBar, StyleSheet } from 'react-native';
+import { Platform, StatusBar, StyleSheet, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './navigation/AppNavigator';
 import { JobProvider } from './contexts/JobContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 const App = () => (
-  <ThemeProvider>
-    <JobProvider>
-      <SafeAreaView style={styles.container}>
-        <AppNavigator />
-      </SafeAreaView>
-    </JobProvider>
-  </ThemeProvider>
+  <SafeAreaProvider>
+    <ThemeProvider>
+      <JobProvider>
+        <View style={styles.container}>
+          <AppNavigator />
+        </View>
+      </JobProvider>
+    </ThemeProvider>
+  </SafeAreaProvider>
 );
 
 const styles = StyleSheet.create({

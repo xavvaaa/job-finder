@@ -8,6 +8,7 @@ import {
   RefreshControl,
   TouchableWithoutFeedback,
   StyleSheet,
+  Alert,
 } from "react-native";
 import { useJobContext } from "../contexts/JobContext";
 import JobItem from "../components/JobItem";
@@ -15,9 +16,11 @@ import SearchBar from "../components/SearchBar";
 import { useTheme } from "../contexts/ThemeContext";
 import FilterModal from "../components/FilterModal";
 import ThemeToggleButton from "../components/ThemeToggleButton";
+import ScreenHeader from "../components/ScreenHeader";
 import { createJobFinderScreenStyles } from "../styles/components/JobFinderScreenStyles";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../styles/theme";
+import { clearAllStorage } from "../utils/clearStorage";
 
 const JobFinderScreen = () => {
   const {
@@ -25,6 +28,7 @@ const JobFinderScreen = () => {
     fetchJobs,
     savedJobs,
     saveJob,
+    removeSavedJob,
     isLoading,
     error,
     searchJobs,
@@ -118,6 +122,65 @@ const JobFinderScreen = () => {
     fetchJobs().catch((err) => console.error("Initial data load failed:", err));
   }, [fetchJobs]);
 
+  const handleClearStorage = () => {
+    Alert.alert(
+      'Clear All Data',
+      'This will remove all saved jobs, applied jobs, and search history. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            const success = await clearAllStorage();
+            if (success) {
+              Alert.alert('Success', 'All data cleared! Please restart the app.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const renderItem = useCallback(({ item }: { item: any }) => {
+    // Check if saved using stable identifiers
+    const isSaved = savedJobs.some((saved) => {
+      // First try applicationLink (most stable)
+      if (item.applicationLink && saved.applicationLink) {
+        return saved.applicationLink === item.applicationLink;
+      }
+      // Fallback to title + company
+      return saved.title === item.title && saved.company === item.company;
+    });
+    
+    const handleSave = () => {
+      if (isSaved) {
+        Alert.alert(
+          'Remove from Saved',
+          `Remove "${item.title}" from your saved jobs?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Remove', 
+              style: 'destructive',
+              onPress: () => removeSavedJob(item)
+            }
+          ]
+        );
+      } else {
+        saveJob(item);
+      }
+    };
+    
+    return (
+      <JobItem 
+        job={item} 
+        onSave={handleSave} 
+        isSaved={isSaved} 
+      />
+    );
+  }, [saveJob, removeSavedJob, savedJobs]);
+
   if (isLoading && !refreshing && originalJobs.length === 0) {
     return (
       <View style={styles.container}>
@@ -139,25 +202,18 @@ const JobFinderScreen = () => {
 
   return (
     <View style={styles.container}>
+      <ScreenHeader
+        title="Job Finder"
+        showThemeToggle={true}
+        showFilter={true}
+        onFilterPress={() => setShowFilters(true)}
+      />
+
       {isSearchFocused && (
         <TouchableWithoutFeedback onPress={() => setIsSearchFocused(false)}>
-          <View style={StyleSheet.absoluteFillObject} />
+          <View style={[StyleSheet.absoluteFillObject, { zIndex: 1 }]} />
         </TouchableWithoutFeedback>
       )}
-
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Job Finder</Text>
-        <View style={styles.headerActions}>
-          <ThemeToggleButton onPress={toggleTheme} />
-          <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilters(true)}>
-            <Ionicons
-              name="filter"
-              size={24}
-              color={theme === "dark" ? colors.dark.text : colors.light.text}
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
 
       <View style={styles.searchContainer}>
         <SearchBar
@@ -195,13 +251,7 @@ const JobFinderScreen = () => {
       <FlatList
         data={displayedJobs}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <JobItem 
-            job={item} 
-            onSave={() => saveJob(item)} 
-            isSaved={savedJobs.some((saved) => saved.id === item.id)} 
-          />
-        )}
+        renderItem={renderItem}
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl
@@ -212,6 +262,11 @@ const JobFinderScreen = () => {
           />
         }
         ListEmptyComponent={<Text style={styles.noJobsText}>{refreshing ? "Refreshing..." : "No jobs found"}</Text>}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        windowSize={10}
+        initialNumToRender={10}
       />
 
       <FilterModal visible={showFilters} onClose={() => setShowFilters(false)} filters={filters} setFilters={setFilters} />

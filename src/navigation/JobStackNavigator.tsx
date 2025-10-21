@@ -1,10 +1,14 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import JobFinderScreen from "../screens/JobFinderScreen";
+import JobDetailsScreen from "../screens/JobDetailsScreen";
 import ApplicationForm, { ApplicationFormProps } from "../components/ApplicationForm";
 
 export type JobStackParamList = {
   Jobs: undefined;
+  JobDetails: {
+    jobId: string;
+  };
   Application: {
     jobId: string;
     onApply: (applicationData: {
@@ -29,6 +33,13 @@ const JobStackNavigator = () => {
       }}
     >
       <Stack.Screen name="Jobs" component={JobFinderScreen} />
+      <Stack.Screen 
+        name="JobDetails" 
+        component={JobDetailsScreen}
+        options={{
+          animation: "slide_from_right",
+        }}
+      />
       <Stack.Screen
         name="Application"
         component={ApplicationForm as React.ComponentType<any>}

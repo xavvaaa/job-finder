@@ -6,11 +6,13 @@ import { useTheme } from "../contexts/ThemeContext";
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from "@react-navigation/native";
 import { colors, spacing, fontSizes, borderRadius } from "../styles/theme";
-import ThemeToggleButton from "../components/ThemeToggleButton";
+import ScreenHeader from "../components/ScreenHeader";
+import FilterModal from "../components/FilterModal";
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/Navigation';
 import { Job } from "../types/Job";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STORAGE_KEYS } from '../constants';
 
 type AppliedJobsScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -19,44 +21,54 @@ type AppliedJobsScreenNavigationProp = NativeStackNavigationProp<
 
 const AppliedJobsScreen = () => {
     const { 
-        jobs, 
+        allJobs,
         isLoading, 
         fetchJobs,
+        appliedJobs,
     } = useJobContext();
     const { theme, toggleTheme } = useTheme();
     const navigation = useNavigation<AppliedJobsScreenNavigationProp>();
     const isFocused = useIsFocused();
     const styles = createStyles(theme === 'dark');
-    const [appliedJobsWithDetails, setAppliedJobsWithDetails] = useState<Job[]>([]);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [appliedJobIds, setAppliedJobIds] = useState<string[]>([]);
+    const [showFilters, setShowFilters] = useState(false);
+    const [filters, setFilters] = useState<any>({});
 
-    useEffect(() => {
-        const loadAppliedJobIds = async () => {
-            try {
-                const savedAppliedJobs = await AsyncStorage.getItem('appliedJobs');
-                if (savedAppliedJobs) {
-                    const parsedAppliedJobs = JSON.parse(savedAppliedJobs);
-                    setAppliedJobIds(parsedAppliedJobs);
-                }
-            } catch (error) {
-                console.error("Failed to load applied jobs:", error);
-            }
-        };
+    // Filter applied jobs based on filter criteria
+    const filteredJobs = React.useMemo(() => {
+        let filtered = [...appliedJobs];
 
-        loadAppliedJobIds();
-    }, [isFocused]);
-
-    useEffect(() => {
-        const loadAppliedJobsDetails = () => {
-            const appliedJobsDetails = jobs.filter(job => 
-                appliedJobIds.includes(job.id)
+        if (filters.minSalary) {
+            filtered = filtered.filter(job => 
+                job.salary >= filters.minSalary || 
+                (job.minSalary !== null && job.minSalary >= filters.minSalary)
             );
-            setAppliedJobsWithDetails(appliedJobsDetails);
-        };
+        }
 
-        loadAppliedJobsDetails();
-    }, [appliedJobIds, jobs]);
+        if (filters.location) {
+            filtered = filtered.filter(job =>
+                job.location?.toLowerCase().includes(filters.location.toLowerCase())
+            );
+        }
+
+        if (filters.jobType) {
+            filtered = filtered.filter(job => job.jobType === filters.jobType);
+        }
+
+        if (filters.workModel) {
+            filtered = filtered.filter(job => job.workModel === filters.workModel);
+        }
+
+        if (filters.seniorityLevel) {
+            filtered = filtered.filter(job => job.seniorityLevel === filters.seniorityLevel);
+        }
+
+        if (filters.category) {
+            filtered = filtered.filter(job => job.mainCategory === filters.category);
+        }
+
+        return filtered;
+    }, [appliedJobs, filters]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -70,10 +82,10 @@ const AppliedJobsScreen = () => {
     };
 
     const handleBrowseJobs = () => {
-        navigation.navigate("JobStack", { screen: "Jobs" });
+        (navigation as any).navigate("JobStack", { screen: "Jobs" });
     };
 
-    if (isLoading && !isRefreshing && jobs.length === 0) {
+    if (isLoading && !isRefreshing && allJobs.length === 0) {
         return (
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={colors[theme].primary} />
@@ -83,12 +95,15 @@ const AppliedJobsScreen = () => {
 
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>Applied Jobs</Text>
-                <ThemeToggleButton onPress={toggleTheme} />
-            </View>
+            <ScreenHeader
+                title="Applied Jobs"
+                badge={appliedJobs.length}
+                showThemeToggle={true}
+                showFilter={true}
+                onFilterPress={() => setShowFilters(true)}
+            />
 
-            {appliedJobsWithDetails.length === 0 ? (
+            {appliedJobs.length === 0 ? (
                 <View style={styles.emptyContainer}>
                     <Ionicons
                         name="document-text-outline"
@@ -111,7 +126,7 @@ const AppliedJobsScreen = () => {
                 </View>
             ) : (
                 <FlatList
-                    data={appliedJobsWithDetails}
+                    data={filteredJobs}
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => (
                         <JobItem
@@ -133,6 +148,13 @@ const AppliedJobsScreen = () => {
                     }
                 />
             )}
+
+            <FilterModal
+                visible={showFilters}
+                onClose={() => setShowFilters(false)}
+                filters={filters}
+                setFilters={setFilters}
+            />
         </View>
     );
 };
@@ -141,19 +163,6 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors[isDark ? 'dark' : 'light'].background,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: spacing.medium,
-        borderBottomWidth: 1,
-        borderBottomColor: colors[isDark ? 'dark' : 'light'].border,
-    },
-    headerTitle: {
-        fontSize: fontSizes.xlarge,
-        fontWeight: 'bold',
-        color: colors[isDark ? 'dark' : 'light'].text,
     },
     listContainer: {
         padding: spacing.medium,
