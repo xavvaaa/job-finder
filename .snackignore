@@ -1,0 +1,50 @@
+# Snack Ignore File
+# Files and directories to exclude when uploading to Snack
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+.expo/
+.expo-shared/
+dist/
+build/
+*.log
+
+# Tests
+__tests__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Documentation (optional - remove if you want these in Snack)
+README.md
+SNACK_DEPLOYMENT.md
+SNACK_QUICK_START.md
+CHANGES_FOR_SNACK.md
+
+# TypeScript
+tsconfig.json
+
+# Other
+.env
+.env.local
+*.orig

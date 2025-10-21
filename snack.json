@@ -1,14 +1,7 @@
 {
-  "name": "job-finder",
-  "license": "0BSD",
-  "version": "1.0.0",
-  "main": "node_modules/expo/AppEntry.js",
-  "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
-  },
+  "name": "Job Finder",
+  "description": "A modern job search application with search, filtering, and application tracking",
+  "sdkVersion": "52.0.0",
   "dependencies": {
     "@expo/vector-icons": "^14.0.0",
     "@react-native-async-storage/async-storage": "1.23.1",
@@ -32,6 +25,5 @@
     "@types/react": "~18.3.12",
     "@types/uuid": "^10.0.0",
     "typescript": "^5.3.3"
-  },
-  "private": true
+  }
 }

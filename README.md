@@ -37,6 +37,21 @@ A modern, feature-rich job search application built with React Native and Expo. 
 
 ## Getting Started
 
+### 🚀 Quick Start with Snack Expo (No Installation Required!)
+
+The fastest way to try this app is through Snack Expo:
+
+1. **Visit**: https://snack.expo.dev/
+2. **Upload**: Drag and drop the entire project folder
+3. **Test**: Scan QR code with Expo Go app on your phone
+4. **Share**: Get a shareable link instantly!
+
+📖 **Detailed Instructions**: See [`SNACK_QUICK_START.md`](SNACK_QUICK_START.md) for step-by-step guide
+
+✨ **This app is fully Snack-compatible!** All dependencies and configurations are optimized for Snack Expo.
+
+### Local Development Setup
+
 ### Prerequisites
 - Node.js (v14 or higher)
 - npm or yarn
